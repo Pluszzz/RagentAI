@@ -1,0 +1,52 @@
+### All hidden directories ###
+.*/
+!.mvn/
+!.github/
+
+### Maven ###
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### Frontend ###
+node_modules/
+dist/
+.vite/
+.env.local
+
+### Maven Local Repo ###
+.m2-local/
+.m2-repo/
+
+### Local config ###
+mvn-settings.xml
+
+### macOS ###
+.DS_Store
+
+### Logs ###
+*.log
+logs/

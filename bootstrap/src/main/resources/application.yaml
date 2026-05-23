@@ -1,0 +1,182 @@
+server:
+  port: 9090
+  servlet:
+    context-path: /api/ragent
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  tomcat:
+    uri-encoding: UTF-8
+
+spring:
+  application:
+    name: ragent-service
+
+  web:
+    resources:
+      static-locations:
+        - classpath:/META-INF/resources/
+        - classpath:/resources/
+        - classpath:/static/
+        - classpath:/public/
+        - file:../resources/static/
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.zaxxer.hikari.HikariDataSource
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:1234}
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/ragent?characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&transformedBitIsBoolean=true&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
+    hikari:
+      connection-timeout: 5000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      pool-name: RagentHikariPool
+
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:123456}
+
+milvus:
+  uri: ${MILVUS_URI:http://127.0.0.1:19530}
+
+rag:
+  default:
+    collection-name: rag_default_store
+    dimension: 1024
+    metric-type: COSINE
+
+  query-rewrite:
+    enabled: true
+    max-history-messages: 4
+    max-history-chars: 500
+
+  rate-limit:
+    global:
+      enabled: true
+      max-concurrent: 1
+      max-wait-seconds: 3
+      lease-seconds: 30
+      poll-interval-ms: 200
+
+  memory:
+    history-keep-turns: 4
+    summary-start-turns: 5
+    summary-enabled: true
+    ttl-minutes: 60
+    summary-max-chars: 200
+    title-max-length: 30
+
+  knowledge:
+    schedule:
+      scan-delay-ms: 10000
+      lock-seconds: 900
+      batch-size: 20
+      min-interval-seconds: 60
+
+  mcp:
+    servers:
+      - name: default
+        url: http://localhost:9099
+
+  search:
+    channels:
+      vector-global:
+        confidence-threshold: 0.6
+        top-k-multiplier: 1
+      intent-directed:
+        min-intent-score: 0.4
+        top-k-multiplier: 1
+
+  trace:
+    enabled: true
+    max-error-length: 1000
+
+ai:
+  providers:
+    # ollama:
+    #   url: http://127.0.0.1:1234
+    #   endpoints:
+    #     chat: /v1/chat/completions
+    #     embedding: /v1/embeddings
+    bailian:
+      url: https://dashscope.aliyuncs.com
+      api-key: ${BAILIAN_API_KEY:}
+      endpoints:
+        chat: /compatible-mode/v1/chat/completions
+        embedding: /compatible-mode/v1/embeddings
+        rerank: /api/v1/services/rerank/text-rerank/text-rerank
+    siliconflow:
+      url: https://api.siliconflow.cn
+      api-key: ${SILICONFLOW_API_KEY:}
+      endpoints:
+        chat: /v1/chat/completions
+        embedding: /v1/embeddings
+    deepseek:
+      url: https://api.deepseek.com
+      api-key: ${DEEPSEEK_API_KEY:}
+      endpoints:
+        chat: /v1/chat/completions
+
+  selection:
+    failure-threshold: 2
+    open-duration-ms: 30000
+
+  stream:
+    message-chunk-size: 1
+
+  chat:
+    default-model: deepseek-v4-flash
+    deep-thinking-model: deepseek-v4-flash
+    candidates:
+      - id: deepseek-v4-flash
+        provider: deepseek
+        model: deepseek-v4-flash
+        supports-thinking: true
+        priority: 0
+      - id: qwen3-local
+        provider: siliconflow
+        model: qwen3.5-9b
+        supports-thinking: true
+        priority: 10
+
+  embedding:
+    default-model: text-emb-v3
+    candidates:
+      - id: text-emb-v3
+        provider: bailian
+        model: text-embedding-v3
+        dimension: 1024
+        priority: 1
+
+  rerank:
+    default-model: rerank-noop
+    candidates:
+      - id: rerank-noop
+        provider: noop
+        model: noop
+        priority: 100
+
+rustfs:
+  url: ${RUSTFS_URL:http://localhost:9000}
+  access-key-id: ${RUSTFS_ACCESS_KEY:rustfsadmin}
+  secret-access-key: ${RUSTFS_SECRET_KEY:rustfsadmin}
+
+sa-token:
+  token-name: Authorization
+  timeout: 2592000
+  is-concurrent: true
+  is-share: false
+  token-style: simple-uuid
+  is-log: false
+  is-print: false
