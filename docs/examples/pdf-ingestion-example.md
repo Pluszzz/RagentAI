@@ -134,6 +134,20 @@ curl "http://localhost:8080/api/ragent/ingestion/tasks/123"
 
 ## 📊 配置字段说明
 
+### 解析策略（Parser Strategy）
+
+Parser 节点支持三种解析策略，通过 `settings.defaultStrategy` 或每个 `rule.strategy` 配置：
+
+| 策略 | 值 | 输出格式 | 说明 |
+|------|-----|---------|------|
+| **Tika** | `tika` | 纯文本 | Apache Tika 解析，格式覆盖广，适合扫描件和旧格式（**默认**） |
+| **MarkItDown** | `markitdown` | Markdown | 结构化 Markdown 输出，保留标题/表格/列表，适合现代 Office 文档和结构化 PDF |
+| **Hybrid** | `hybrid` | Markdown / 纯文本 | 先尝试 MarkItDown → 质量校验 → 失败自动降级 Tika，适合生产环境 |
+
+**策略优先级**：`rule.strategy` > `settings.defaultStrategy` > 默认 `tika`（向后兼容）
+
+**MarkItDown 环境要求**：需安装 Python `markitdown` 包（`pip install "markitdown[all]"`），通过环境变量 `MARKITDOWN_PYTHON_PATH` 指定 Python 路径。
+
 ### NodeConfig 字段
 
 | 字段 | 类型 | 必填 | 说明 |
@@ -264,7 +278,7 @@ curl -X POST "http://localhost:8080/api/ragent/ingestion/pipelines" \
     "description": "PDF摄取流水线",
     "nodes": [
       {"nodeId": "fetcher-1", "nodeType": "FETCHER", "nextNodeId": "parser-1"},
-      {"nodeId": "parser-1", "nodeType": "PARSER", "settings": {"rules": [{"mimeType": "PDF"}]}, "nextNodeId": "enhancer-1"},
+      {"nodeId": "parser-1", "nodeType": "PARSER", "settings": {"defaultStrategy": "hybrid", "rules": [{"mimeType": "PDF"}]}, "nextNodeId": "enhancer-1"},
       {"nodeId": "enhancer-1", "nodeType": "ENHANCER", "settings": {"modelId": "qwen-max", "tasks": [{"type": "CONTEXT_ENHANCE"}]}, "nextNodeId": "chunker-1"},
       {"nodeId": "chunker-1", "nodeType": "CHUNKER", "settings": {"strategy": "FIXED_SIZE", "chunkSize": 512, "overlapSize": 128}, "nextNodeId": "indexer-1"},
       {"nodeId": "indexer-1", "nodeType": "INDEXER", "settings": {"collectionName": "pdf_documents", "includeEnhancedContent": true}}

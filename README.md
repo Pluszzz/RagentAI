@@ -28,7 +28,7 @@
 | 鉴权 | Sa-Token |
 | 缓存 | Redis + Redisson |
 | 向量数据库 | Milvus 2.6 |
-| 文档解析 | Apache Tika 3.2 |
+| 文档解析 | Apache Tika 3.2 + MarkItDown（结构化 Markdown 输出） |
 | 对象存储 | S3 (RustFS) |
 
 ### 前端
@@ -79,6 +79,7 @@ ragent/
 - Redis 6+
 - Milvus 2.6+
 - S3 兼容存储（RustFS 或 MinIO）
+- Python 3.10+（可选，用于 MarkItDown 结构化解析）
 
 ### 1. 初始化数据库
 
@@ -126,6 +127,7 @@ npm run dev
 export BAILIAN_API_KEY=sk-xxxxx
 export DEEPSEEK_API_KEY=sk-xxxxx
 export SILICONFLOW_API_KEY=sk-xxxxx
+export MARKITDOWN_PYTHON_PATH=/path/to/python   # 可选，使用 MarkItDown 解析时
 export MYSQL_PASSWORD=your_password
 export REDIS_PASSWORD=your_password
 ```
@@ -144,6 +146,7 @@ export REDIS_PASSWORD=your_password
 | `rag.memory` | 会话记忆参数（保留轮次、压缩阈值） |
 | `rag.rate-limit` | 并发限流与排队策略 |
 | `rag.search` | 检索通道与后处理配置 |
+| `markitdown` | MarkItDown 解析器配置（Python 路径、超时） |
 | `rustfs` | 对象存储连接 |
 | `sa-token` | 鉴权配置 |
 

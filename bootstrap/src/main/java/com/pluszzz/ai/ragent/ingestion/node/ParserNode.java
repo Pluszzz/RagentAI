@@ -1,18 +1,16 @@
-/*
- * Copyright 2026 Pluszzz
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+Copyright 2026 Pluszzz
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 package com.pluszzz.ai.ragent.ingestion.node;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -27,12 +25,16 @@ import com.pluszzz.ai.ragent.ingestion.domain.settings.ParserSettings;
 import com.pluszzz.ai.ragent.ingestion.util.MimeTypeDetector;
 import com.pluszzz.ai.ragent.core.parser.DocumentParser;
 import com.pluszzz.ai.ragent.core.parser.DocumentParserSelector;
+import com.pluszzz.ai.ragent.core.parser.MarkdownStructureExtractor;
 import com.pluszzz.ai.ragent.core.parser.ParseResult;
+import com.pluszzz.ai.ragent.core.parser.ParserStrategy;
 import com.pluszzz.ai.ragent.core.parser.ParserType;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +42,7 @@ import java.util.Map;
  * 文档解析节点
  * 负责将输入的字节流（如 PDF、Word、Excel 等）解析为结构化的文本或文档对象
  */
+@Slf4j
 @Component
 public class ParserNode implements IngestionNode {
 
@@ -76,20 +79,22 @@ public class ParserNode implements IngestionNode {
         validateMimeType(settings, mimeType, fileName);
 
         ParserSettings.ParserRule rule = matchRule(settings, mimeType, fileName);
-        DocumentParser parser = parserSelector.select(ParserType.TIKA.getType());
+
+        ParserStrategy strategy = resolveStrategy(settings, rule);
+        log.info("ParserNode 使用策略: {}, MIME: {}", strategy.getValue(), mimeType);
+
+        DocumentParser parser = selectParserByStrategy(strategy);
         if (parser == null) {
-            return NodeResult.fail(new ClientException("未配置 Tika 解析器"));
+            return NodeResult.fail(new ClientException(
+                    "未找到策略 " + strategy.getValue() + " 对应的解析器"));
         }
 
-        Map<String, Object> options = rule == null ? Collections.emptyMap() : rule.getOptions();
+        Map<String, Object> options = buildOptions(rule, fileName);
         ParseResult result = parser.parse(context.getRawBytes(), mimeType, options);
         context.setRawText(result.text());
 
-        // 将 ParseResult 转换为 StructuredDocument
-        StructuredDocument document = StructuredDocument.builder()
-                .text(result.text())
-                .metadata(result.metadata())
-                .build();
+        // 当输出为 Markdown 时，提取结构化信息
+        StructuredDocument document = buildStructuredDocument(result, strategy);
         context.setDocument(document);
 
         return NodeResult.ok("解析文本长度=" + (result.text() == null ? 0 : result.text().length()));
@@ -246,5 +251,77 @@ public class ParserNode implements IngestionNode {
             case "PDF" -> "PDF";
             default -> value;
         };
+    }
+
+    /**
+     * 解析策略，优先级：规则配置 > 默认配置 > Tika（向后兼容）
+     */
+    private ParserStrategy resolveStrategy(ParserSettings settings, ParserSettings.ParserRule rule) {
+        if (rule != null && StringUtils.hasText(rule.getStrategy())) {
+            try {
+                return ParserStrategy.fromValue(rule.getStrategy());
+            } catch (IllegalArgumentException e) {
+                log.warn("未知的解析策略 '{}', 回退到默认配置", rule.getStrategy());
+            }
+        }
+        if (settings != null && StringUtils.hasText(settings.getDefaultStrategy())) {
+            try {
+                return ParserStrategy.fromValue(settings.getDefaultStrategy());
+            } catch (IllegalArgumentException e) {
+                log.warn("未知的默认解析策略 '{}', 回退到 Tika", settings.getDefaultStrategy());
+            }
+        }
+        return ParserStrategy.TIKA;
+    }
+
+    /**
+     * 根据策略选择对应的解析器
+     */
+    private DocumentParser selectParserByStrategy(ParserStrategy strategy) {
+        return switch (strategy) {
+            case TIKA -> parserSelector.select(ParserType.TIKA.getType());
+            case MARKITDOWN -> parserSelector.select(ParserType.MARKITDOWN.getType());
+            case HYBRID -> parserSelector.select(ParserType.HYBRID.getType());
+        };
+    }
+
+    /**
+     * 构建解析选项，将文件名透传给解析器（用于临时文件扩展名推断）
+     */
+    private Map<String, Object> buildOptions(ParserSettings.ParserRule rule, String fileName) {
+        Map<String, Object> options = new HashMap<>();
+        if (rule != null && rule.getOptions() != null) {
+            options.putAll(rule.getOptions());
+        }
+        if (StringUtils.hasText(fileName)) {
+            options.putIfAbsent("fileName", fileName);
+        }
+        return options;
+    }
+
+    /**
+     * 构建结构化文档，当策略为 MarkItDown 或 Hybrid 且输出含 Markdown 结构时
+     * 提取章节和表格信息
+     */
+    private StructuredDocument buildStructuredDocument(ParseResult result, ParserStrategy strategy) {
+        StructuredDocument document = StructuredDocument.builder()
+                .text(result.text())
+                .metadata(result.metadata())
+                .build();
+
+        if (isMarkdownOutput(strategy, result.text())) {
+            MarkdownStructureExtractor.enrich(document);
+        }
+
+        return document;
+    }
+
+    /**
+     * 判断是否为 Markdown 格式的输出
+     */
+    private static boolean isMarkdownOutput(ParserStrategy strategy, String text) {
+        return (strategy == ParserStrategy.MARKITDOWN || strategy == ParserStrategy.HYBRID)
+                && text != null
+                && (text.contains("#") || text.contains("|"));
     }
 }

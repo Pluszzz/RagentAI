@@ -167,6 +167,11 @@ ai:
         model: noop
         priority: 100
 
+markitdown:
+  python-path: ${MARKITDOWN_PYTHON_PATH:python}
+  enabled: true
+  timeout-seconds: 60
+
 rustfs:
   url: ${RUSTFS_URL:http://localhost:9000}
   access-key-id: ${RUSTFS_ACCESS_KEY:rustfsadmin}

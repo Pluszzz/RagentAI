@@ -11,9 +11,15 @@
       "nodeId": "parser-1",
       "nodeType": "parser",
       "settings": {
+        "defaultStrategy": "hybrid",
         "rules": [
           {
-            "mimeType": "PDF"
+            "mimeType": "PDF",
+            "strategy": "markitdown"
+          },
+          {
+            "mimeType": "WORD",
+            "strategy": "hybrid"
           }
         ]
       },
